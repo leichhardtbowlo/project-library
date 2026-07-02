@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Library – The Bowlo Leichhardt</title>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<style>
+:root {
+  --navy:#0D2141;--teal:#0D3A3D;--amber:#f59e0b;
+  --white:#fff;--off:#f4f6f9;--mid:#e2e8f0;
+  --text:#1a202c;--muted:#64748b;
+  --high:#dc2626;--low:#16a34a;
+  --radius:8px;--shadow:0 2px 8px rgba(0,0,0,.09);--shadow-lg:0 4px 20px rgba(0,0,0,.14);
+  --active:#0ea5e9;--confirmed:#8b5cf6;--wishlist:#94a3b8;--completed:#16a34a;--archived:#cbd5e1;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--off);color:var(--text);min-height:100vh;}
+
+#screen-login{min-height:100vh;background:var(--navy);flex-direction:column;align-items:center;justify-content:center;gap:24px;display:none;}
+#screen-login.active{display:flex;}
+.login-card{background:var(--white);border-radius:16px;padding:40px 36px;width:340px;text-align:center;box-shadow:var(--shadow-lg);}
+.login-logo{height:72px;margin-bottom:16px;border-radius:14px;overflow:hidden;display:block;margin-left:auto;margin-right:auto;}
+.login-card h1{font-size:20px;color:var(--navy);margin-bottom:4px;}
+.login-card p{font-size:14px;color:var(--muted);margin-bottom:28px;}
+.btn-login{background:var(--navy);color:var(--white);border:none;border-radius:var(--radius);padding:13px 28px;font-size:15px;font-weight:600;cursor:pointer;width:100%;}
+.login-note{font-size:12px;color:rgba(255,255,255,0.45);margin-top:8px;}
+.login-checking-state{display:flex;flex-direction:column;align-items:center;gap:14px;padding:6px 0 2px;}
+.login-spinner{width:26px;height:26px;border:3px solid rgba(13,33,65,0.15);border-top-color:var(--navy);border-radius:50%;animation:login-spin .8s linear infinite;}
+@keyframes login-spin{to{transform:rotate(360deg);}}
+.login-checking-text.login-checking-text{font-size:13px;color:var(--muted);margin:0;}
+
+.app-header{background:var(--navy);height:60px;display:none;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow);}
+.header-left{display:flex;align-items:center;gap:12px;}
+.header-logo{height:36px;border-radius:8px;}
+.header-title{font-size:15px;font-weight:700;color:#fff;line-height:1.2;}
+.header-sub{font-size:11px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.04em;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.user-chip{font-size:12px;color:rgba(255,255,255,.8);background:rgba(255,255,255,.12);padding:4px 10px;border-radius:20px;}
+.btn-signout{background:none;border:1px solid rgba(255,255,255,.3);color:rgba(255,255,255,.7);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;}
+.btn-home{background:none;border:1px solid rgba(255,255,255,.3);color:rgba(255,255,255,.85);border-radius:6px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;text-decoration:none;}
+.btn-home:hover{background:rgba(255,255,255,.15);}
+
+.screen{display:none;} .screen.active{display:block;}
+.bottom-tabs{position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--mid);display:flex;z-index:100;box-shadow:0 -2px 12px rgba(0,0,0,.08);}
+.bottom-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px 8px;cursor:pointer;border:none;background:none;color:var(--muted);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;gap:4px;}
+.bottom-tab.active{color:var(--navy);}
+.main-content{padding-bottom:70px;}
+.fab{position:fixed;bottom:80px;right:20px;background:var(--amber);color:var(--navy);border:none;border-radius:50%;width:52px;height:52px;font-size:26px;cursor:pointer;box-shadow:var(--shadow-lg);z-index:90;display:none;align-items:center;justify-content:center;}
+.fab.visible{display:flex;}
+
+.toolbar{background:var(--white);border-bottom:1px solid var(--mid);padding:12px 16px;position:sticky;top:60px;z-index:90;display:flex;gap:8px;}
+.search-wrap{position:relative;flex:1;}
+.search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;}
+.search-input{width:100%;padding:9px 12px 9px 34px;border:1px solid var(--mid);border-radius:var(--radius);font-size:14px;background:var(--off);outline:none;}
+
+.lane{border-bottom:1px solid var(--mid);}
+.lane-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;background:var(--white);position:sticky;top:113px;z-index:80;}
+.lane-header:hover{background:#f8faff;}
+.lane-left{display:flex;align-items:center;gap:10px;}
+.lane-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.lane-dot-active{background:var(--active);} .lane-dot-confirmed{background:var(--confirmed);}
+.lane-dot-wishlist{background:var(--wishlist);} .lane-dot-completed{background:var(--completed);}
+.lane-dot-archived{background:var(--archived);}
+.lane-title{font-size:14px;font-weight:700;color:var(--navy);}
+.lane-count{font-size:12px;color:var(--muted);font-weight:500;}
+.lane-chevron{color:var(--muted);transition:transform .2s;}
+.lane-chevron.open{transform:rotate(90deg);}
+.lane-body{padding:8px 12px 4px;display:none;}
+.lane-body.open{display:block;}
+
+.project-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:8px;border-left:4px solid var(--mid);cursor:pointer;}
+.project-card:hover{box-shadow:var(--shadow-lg);}
+.pc-active{border-left-color:var(--active);} .pc-confirmed{border-left-color:var(--confirmed);}
+.pc-wishlist{border-left-color:var(--wishlist);} .pc-completed{border-left-color:var(--completed);}
+.pc-archived{border-left-color:var(--archived);opacity:.65;}
+.card-body{padding:10px 12px;}
+.card-title{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:5px;}
+.card-meta{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px;}
+.card-summary{font-size:12px;color:var(--muted);line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.card-footer{display:flex;align-items:center;justify-content:space-between;margin-top:6px;}
+.subproject-pill{font-size:11px;background:var(--off);border:1px solid var(--mid);border-radius:20px;padding:2px 8px;color:var(--muted);font-weight:600;}
+.subproject-pill.all-done{background:#f0fdf4;border-color:#bbf7d0;color:var(--low);}
+.card-timestamp{font-size:11px;color:var(--muted);}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid transparent;white-space:nowrap;}
+.badge-active{background:#e0f2fe;color:#0369a1;border-color:#bae6fd;}
+.badge-confirmed{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe;}
+.badge-wishlist{background:#f1f5f9;color:#475569;border-color:#cbd5e1;}
+.badge-completed{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}
+.badge-archived{background:#f1f5f9;color:#94a3b8;border-color:#e2e8f0;}
+.badge-cat{background:#eff6ff;color:#2563eb;border-color:#bfdbfe;}
+
+.detail-header{background:var(--white);border-bottom:1px solid var(--mid);padding:12px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:60px;z-index:90;}
+.btn-back{background:none;border:none;cursor:pointer;color:var(--navy);display:flex;align-items:center;gap:5px;font-size:13px;font-weight:600;white-space:nowrap;}
+.detail-header-title{font-size:14px;font-weight:700;color:var(--navy);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.btn-edit-toggle{background:none;border:1px solid var(--mid);color:var(--muted);border-radius:6px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.btn-edit-toggle.editing{background:var(--navy);color:#fff;border-color:var(--navy);}
+.detail-body{padding:0;max-width:720px;margin:0 auto;padding-bottom:100px;}
+.stage-strip{background:var(--white);border-bottom:1px solid var(--mid);padding:12px 16px;display:flex;align-items:center;gap:8px;overflow-x:auto;}
+.stage-pill-btn{padding:7px 14px;border-radius:20px;border:2px solid var(--mid);font-size:12px;font-weight:700;cursor:pointer;background:var(--off);color:var(--muted);white-space:nowrap;flex-shrink:0;}
+.stage-pill-btn.active-stage-active{border-color:var(--active);background:#e0f2fe;color:#0369a1;}
+.stage-pill-btn.active-stage-confirmed{border-color:var(--confirmed);background:#f5f3ff;color:#6d28d9;}
+.stage-pill-btn.active-stage-wishlist{border-color:var(--wishlist);background:#f1f5f9;color:#475569;}
+.stage-pill-btn.active-stage-completed{border-color:var(--completed);background:#f0fdf4;color:#15803d;}
+.stage-pill-btn.active-stage-archived{border-color:var(--archived);background:#f8fafc;color:#94a3b8;}
+.edit-save-bar{background:var(--navy);padding:10px 16px;display:none;gap:8px;}
+.edit-save-bar.visible{display:flex;}
+.btn-save-edit{background:var(--amber);color:var(--navy);border:none;border-radius:var(--radius);padding:9px 20px;font-size:13px;font-weight:800;cursor:pointer;flex:1;}
+.btn-cancel-edit{background:none;border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:var(--radius);padding:9px 16px;font-size:13px;cursor:pointer;}
+.detail-info{padding:16px;}
+.detail-title{font-size:19px;font-weight:800;color:var(--navy);margin-bottom:8px;}
+.detail-title-input{font-size:19px;font-weight:800;color:var(--navy);width:100%;border:none;border-bottom:2px solid var(--navy);background:transparent;outline:none;margin-bottom:8px;font-family:inherit;}
+.detail-badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+.detail-section{background:var(--white);border-radius:var(--radius);margin:0 12px 10px;box-shadow:var(--shadow);}
+.detail-section-header{padding:12px 14px;display:flex;align-items:center;justify-content:space-between;}
+.detail-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);}
+.detail-field-label{font-size:11px;color:var(--muted);margin-bottom:3px;font-weight:500;}
+.detail-text-block{font-size:14px;color:var(--text);line-height:1.6;white-space:pre-wrap;word-wrap:break-word;}
+.detail-text-edit{width:100%;font-size:14px;color:var(--text);line-height:1.6;font-family:inherit;border:1px solid var(--mid);border-radius:6px;padding:8px 10px;outline:none;resize:vertical;min-height:80px;}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 14px 14px;}
+.detail-field-inner{padding:14px 14px 0;}
+.finance-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.fin-card{background:var(--off);border-radius:var(--radius);padding:10px;text-align:center;border:1px solid var(--mid);}
+.fin-card-label{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;margin-bottom:3px;}
+.fin-card-value{font-size:15px;font-weight:800;}
+.sp-control{width:100%;padding:8px 10px;border:1px solid var(--mid);border-radius:6px;font-size:13px;color:var(--text);background:var(--white);outline:none;font-family:inherit;}
+textarea.sp-control{min-height:70px;resize:vertical;}
+
+.subprojects-section{background:var(--white);border-radius:var(--radius);margin:0 12px 10px;box-shadow:var(--shadow);overflow:hidden;}
+.subprojects-header{padding:12px 14px;display:flex;align-items:center;justify-content:space-between;}
+.subprojects-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);}
+.subprojects-summary{font-size:12px;color:var(--muted);font-weight:500;}
+.subproject-accordion{border-top:1px solid var(--mid);}
+.sp-item-header{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;border-bottom:1px solid var(--mid);}
+.sp-item-header:hover{background:var(--off);}
+.sp-item.sp-open .sp-item-header{background:#f8faff;border-bottom-color:transparent;}
+.sp-status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;border:2px solid var(--mid);}
+.sp-status-dot.pending{border-color:#94a3b8;} .sp-status-dot.inprogress{border-color:var(--amber);background:var(--amber);}
+.sp-status-dot.done{border-color:var(--low);background:var(--low);}
+.sp-name{flex:1;font-size:13px;font-weight:600;color:var(--text);}
+.sp-meta-row{display:flex;align-items:center;gap:8px;}
+.sp-status-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;white-space:nowrap;}
+.sp-badge-pending{background:#f1f5f9;color:#64748b;} .sp-badge-inprogress{background:#fffbeb;color:#d97706;} .sp-badge-done{background:#f0fdf4;color:#15803d;}
+.sp-chevron{transition:transform .2s;color:var(--muted);}
+.sp-item.sp-open .sp-chevron{transform:rotate(90deg);}
+.sp-item-body{display:none;padding:14px;border-bottom:1px solid var(--mid);background:#fafbfe;}
+.sp-item.sp-open .sp-item-body{display:block;}
+.sp-body-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.sp-field-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:5px;}
+.sp-status-row{display:flex;gap:6px;flex-wrap:wrap;}
+.sp-status-opt{padding:5px 12px;border-radius:20px;border:2px solid var(--mid);font-size:12px;font-weight:600;cursor:pointer;background:var(--off);color:var(--muted);}
+.sp-status-opt.sel-pending{border-color:#94a3b8;background:#f1f5f9;color:#475569;}
+.sp-status-opt.sel-inprogress{border-color:var(--amber);background:#fffbeb;color:#d97706;}
+.sp-status-opt.sel-done{border-color:var(--low);background:#f0fdf4;color:#15803d;}
+.sp-save-row{display:flex;justify-content:flex-end;margin-top:12px;gap:8px;}
+.btn-sp-save{background:var(--navy);color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;}
+.btn-sp-archive{background:none;border:1px solid var(--mid);color:var(--muted);border-radius:6px;padding:7px 12px;font-size:12px;cursor:pointer;}
+.add-subproject-bar{padding:10px 14px;display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid var(--mid);background:var(--off);}
+.add-sp-pill{padding:5px 10px;border-radius:20px;border:1px dashed var(--mid);font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;background:var(--white);}
+.add-sp-pill:hover{border-color:var(--navy);color:var(--navy);}
+
+.update-log-entries{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+.update-log-entry{background:var(--off);border-radius:var(--radius);padding:10px 12px;border-left:3px solid var(--teal);}
+.update-log-meta{font-size:11px;color:var(--muted);margin-bottom:3px;font-weight:600;}
+.update-log-text{font-size:13px;color:var(--text);line-height:1.5;}
+.update-note-input{width:100%;padding:10px 12px;border:1px solid var(--mid);border-radius:var(--radius);font-size:13px;font-family:inherit;min-height:70px;resize:vertical;margin-bottom:8px;}
+.btn-add-note{background:var(--teal);color:#fff;border:none;border-radius:var(--radius);padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;}
+
+.attachment-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+.attachment-link{display:flex;align-items:center;gap:10px;padding:8px 11px;background:var(--off);border:1px solid var(--mid);border-radius:var(--radius);text-decoration:none;color:var(--navy);font-size:13px;font-weight:500;}
+.attachment-link:hover{background:var(--mid);}
+.attachment-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.btn-add-attachment{background:none;border:2px dashed var(--mid);border-radius:var(--radius);padding:9px;width:100%;cursor:pointer;font-size:13px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:8px;}
+.btn-add-attachment:hover{border-color:var(--navy);color:var(--navy);}
+.btn-download-pack{background:linear-gradient(135deg,var(--navy),var(--teal));color:#fff;border:none;border-radius:var(--radius);padding:12px 20px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;width:100%;justify-content:center;}
+.pack-note{font-size:11px;color:var(--muted);text-align:center;margin-top:6px;}
+.danger-zone{padding:14px;border-top:1px solid var(--mid);}
+.btn-archive-project{background:none;border:1px solid var(--mid);color:var(--muted);border-radius:var(--radius);padding:9px 16px;font-size:13px;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;}
+.btn-archive-project:hover{border-color:#94a3b8;color:#475569;background:#f8fafc;}
+
+/* GRANTS */
+.grants-toolbar{background:var(--white);border-bottom:1px solid var(--mid);padding:12px 16px;position:sticky;top:60px;z-index:90;}
+.grant-form-toggle{display:flex;justify-content:flex-end;}
+.btn-new-grant{background:var(--amber);color:var(--navy);border:none;border-radius:var(--radius);padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;}
+.grants-body{padding:8px 12px 12px;max-width:720px;margin:0 auto;}
+.grants-section-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:12px 4px 6px;}
+.grant-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:8px;overflow:hidden;cursor:pointer;}
+.grant-card-inner{display:flex;}
+.grant-urgency-bar{width:5px;flex-shrink:0;}
+.gb-critical{background:var(--high);} .gb-normal{background:var(--active);} .gb-upcoming{background:var(--confirmed);} .gb-closed{background:#94a3b8;} .gb-awarded{background:var(--low);}
+.grant-body{padding:10px 12px;flex:1;min-width:0;}
+.grant-title{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:3px;}
+.grant-funder{font-size:12px;color:var(--muted);margin-bottom:5px;}
+.grant-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.grant-amount{font-size:12px;font-weight:700;color:var(--low);}
+.grant-deadline{font-size:12px;color:var(--text);font-weight:500;}
+.grant-deadline.urgent{color:var(--high);font-weight:700;}
+.countdown-badge{background:#fef2f2;border:1px solid #fecaca;color:var(--high);font-size:11px;font-weight:800;padding:2px 8px;border-radius:20px;}
+.grant-deadline-banner{background:#fef2f2;border:1px solid #fecaca;border-radius:var(--radius);padding:10px 14px;display:flex;align-items:center;gap:10px;margin:12px;}
+.grant-deadline-banner.safe{background:#f0fdf4;border-color:#bbf7d0;}
+.grant-deadline-text{font-size:14px;font-weight:700;color:var(--high);}
+.grant-deadline-banner.safe .grant-deadline-text{color:var(--low);}
+
+/* ACTIVITY */
+.activity-body{padding:12px 16px 80px;max-width:720px;margin:0 auto;}
+.activity-day-divider{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:16px 0 10px;display:flex;align-items:center;gap:10px;}
+.activity-day-divider::after{content:'';flex:1;height:1px;background:var(--mid);}
+.activity-entry{display:flex;gap:10px;margin-bottom:12px;align-items:flex-start;}
+.activity-avatar{width:30px;height:30px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.activity-card{flex:1;background:var(--white);border-radius:var(--radius);padding:10px 12px;box-shadow:0 1px 4px rgba(0,0,0,.06);border:1px solid var(--mid);}
+.activity-text{font-size:13px;color:var(--text);line-height:1.5;}
+.activity-text strong{color:var(--navy);}
+.activity-time{font-size:11px;color:var(--muted);margin-top:3px;}
+.activity-tag{display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:.04em;margin-left:6px;}
+.tag-project{background:#e0f2fe;color:#0369a1;} .tag-grant{background:#f0fdf4;color:#15803d;}
+
+/* FORMS (new project/grant) */
+.form-header{background:var(--white);border-bottom:1px solid var(--mid);padding:14px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:60px;z-index:90;}
+.form-header-title{font-size:16px;font-weight:700;color:var(--navy);}
+.form-body{padding:16px;max-width:720px;margin:0 auto;padding-bottom:80px;}
+.form-section{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden;}
+.form-section-header{background:var(--navy);color:#fff;padding:11px 16px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;}
+.form-section-body{padding:16px;}
+.form-group{margin-bottom:16px;}
+.form-label{display:block;font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;}
+.form-label .req{color:var(--high);margin-left:2px;}
+.form-hint{font-size:12px;color:var(--muted);margin-bottom:6px;font-style:italic;font-weight:400;text-transform:none;}
+.form-control{width:100%;padding:10px 12px;border:1px solid var(--mid);border-radius:var(--radius);font-size:14px;color:var(--text);background:var(--white);outline:none;font-family:inherit;}
+textarea.form-control{min-height:90px;resize:vertical;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.stage-selector{display:flex;gap:6px;flex-wrap:wrap;}
+.stage-opt{padding:7px 14px;border-radius:20px;border:2px solid var(--mid);font-size:13px;font-weight:600;cursor:pointer;background:var(--off);color:var(--muted);}
+.stage-opt.sel-active{border-color:var(--active);background:#e0f2fe;color:#0369a1;}
+.stage-opt.sel-confirmed{border-color:var(--confirmed);background:#f5f3ff;color:#6d28d9;}
+.stage-opt.sel-wishlist{border-color:var(--wishlist);background:#f1f5f9;color:#475569;}
+.cat-selector{display:flex;gap:6px;flex-wrap:wrap;}
+.cat-opt{padding:6px 12px;border-radius:20px;border:1px solid var(--mid);font-size:12px;font-weight:600;cursor:pointer;background:var(--off);color:var(--muted);}
+.cat-opt.selected{background:var(--navy);color:#fff;border-color:var(--navy);}
+.finance-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.upload-zone{border:2px dashed var(--mid);border-radius:var(--radius);padding:16px;text-align:center;cursor:pointer;background:var(--off);}
+.upload-zone:hover{border-color:var(--navy);background:#f0f4ff;}
+.upload-zone input{display:none;}
+.upload-zone-text{font-size:13px;color:var(--muted);margin-top:6px;}
+.file-list{margin-top:10px;display:flex;flex-direction:column;gap:6px;}
+.file-chip{display:flex;align-items:center;gap:8px;background:var(--white);border:1px solid var(--mid);border-radius:var(--radius);padding:7px 10px;font-size:13px;}
+.file-chip-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.file-chip-remove{background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:0 2px;}
+.suggested-subprojects{margin-bottom:4px;}
+.suggested-label{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:8px;}
+.suggested-grid{display:flex;flex-wrap:wrap;gap:6px;}
+.suggested-pill{padding:6px 12px;border-radius:20px;border:1px dashed var(--mid);font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;background:var(--off);}
+.suggested-pill.added{background:#eef2f9;border-color:var(--navy);color:var(--navy);border-style:solid;}
+.new-sp-list{margin-top:10px;display:flex;flex-direction:column;gap:6px;}
+.new-sp-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--white);border:1px solid var(--mid);border-radius:var(--radius);font-size:13px;font-weight:600;color:var(--text);}
+.new-sp-item span{flex:1;}
+.btn-submit-form{background:var(--navy);color:#fff;border:none;border-radius:var(--radius);padding:14px 24px;font-size:15px;font-weight:700;cursor:pointer;width:100%;}
+.btn-submit-form:disabled{opacity:.45;cursor:not-allowed;}
+.form-progress{font-size:13px;color:var(--muted);text-align:center;margin-top:10px;min-height:18px;}
+
+.toast{position:fixed;bottom:82px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--navy);color:#fff;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:500;z-index:999;transition:transform .3s;white-space:nowrap;box-shadow:var(--shadow-lg);}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.toast.success{background:var(--low);} .toast.error{background:var(--high);}
+.empty-state{text-align:center;padding:50px 20px;color:var(--muted);}
+.loading-spinner{text-align:center;padding:50px 20px;color:var(--muted);font-size:14px;}
+</style>
+</head>
+<body>
+
+<div id="screen-login" class="screen active">
+  <div class="login-card">
+    <img class="login-logo" src="https://leichhardtbowlo.github.io/director-reports/bowlo-logo.png" alt="The Bowlo" onerror="this.style.display='none'">
+    <h1>Project Library</h1>
+    <p>Leichhardt Bowlo</p>
+    <div id="login-checking" class="login-checking-state">
+      <div class="login-spinner"></div>
+      <p class="login-checking-text">Checking sign-in…</p>
+    </div>
+    <button class="btn-login" id="btn-login" onclick="signIn()" style="display:none">Sign in with Microsoft 365</button>
+  </div>
+  <p class="login-note" id="login-note" style="display:none">Leichhardt Bowling Club staff &amp; management only</p>
+</div>
+
+<header class="app-header" id="app-header">
+  <div class="header-left">
+    <img class="header-logo" src="https://leichhardtbowlo.github.io/director-reports/bowlo-logo.png" alt="" onerror="this.style.display='none'">
+    <div><div class="header-title">Project Library</div><div class="header-sub">Leichhardt Bowlo</div></div>
+  </div>
+  <div class="header-right">
+    <a class="btn-home" href="https://leichhardtbowlo.github.io/board-portal/index.html" title="Back to Portal">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+    </a>
+    <span class="user-chip" id="user-chip"></span>
+    <button class="btn-signout" onclick="signOut()">Sign out</button>
+  </div>
+</header>
+
+<div id="screen-home" class="screen main-content">
+  <div id="tab-projects">
+    <div class="toolbar">
+      <div class="search-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input class="search-input" id="project-search" type="text" placeholder="Search projects…" oninput="renderLanes()">
+      </div>
+    </div>
+    <div id="lanes-container"><div class="loading-spinner">Loading…</div></div>
+  </div>
+
+  <div id="tab-grants" style="display:none">
+    <div class="grants-toolbar">
+      <div class="grant-form-toggle"><button class="btn-new-grant" onclick="showScreen('grant-form')">+ New Grant</button></div>
+    </div>
+    <div class="grants-body" id="grants-container"><div class="loading-spinner">Loading…</div></div>
+  </div>
+
+  <div id="tab-activity" style="display:none">
+    <div class="activity-body" id="activity-container"><div class="loading-spinner">Loading…</div></div>
+  </div>
+</div>
+
+<button class="fab" id="fab" onclick="showScreen('project-form')">+</button>
+
+<div id="screen-detail" class="screen main-content">
+  <div class="detail-header">
+    <button class="btn-back" onclick="backToHome()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      Projects
+    </button>
+    <span class="detail-header-title" id="detail-header-title"></span>
+    <button class="btn-edit-toggle" id="btn-edit" onclick="toggleEdit()">Edit</button>
+  </div>
+  <div class="stage-strip" id="stage-strip"></div>
+  <div class="edit-save-bar" id="edit-save-bar">
+    <button class="btn-cancel-edit" onclick="toggleEdit(true)">Cancel</button>
+    <button class="btn-save-edit" onclick="saveEdit()">Save changes</button>
+  </div>
+  <div class="detail-body" id="detail-body"></div>
+</div>
+
+<div id="screen-grant-detail" class="screen main-content">
+  <div class="detail-header">
+    <button class="btn-back" onclick="backToHome('grants')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      Grants
+    </button>
+    <span class="detail-header-title" id="grant-detail-title"></span>
+  </div>
+  <div class="detail-body" id="grant-detail-body"></div>
+</div>
+
+<div id="screen-project-form" class="screen main-content">
+  <div class="form-header">
+    <button class="btn-back" onclick="backToHome()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      Back
+    </button>
+    <span class="form-header-title">New Project</span>
+  </div>
+  <div class="form-body">
+    <div class="form-section">
+      <div class="form-section-header">Basics</div>
+      <div class="form-section-body">
+        <div class="form-group"><label class="form-label">Project name <span class="req">*</span></label><input type="text" class="form-control" id="pf-title" oninput="checkProjectSubmit()"></div>
+        <div class="form-group"><label class="form-label">Stage</label>
+          <div class="stage-selector" id="pf-stage-selector">
+            <div class="stage-opt sel-active" data-value="Active" onclick="selectStage(this)">Active</div>
+            <div class="stage-opt" data-value="Confirmed" onclick="selectStage(this)">Confirmed Future</div>
+            <div class="stage-opt" data-value="Wishlist" onclick="selectStage(this)">Wishlist</div>
+          </div>
+        </div>
+        <div class="form-group"><label class="form-label">Category</label>
+          <div class="cat-selector" id="pf-cat-selector">
+            <div class="cat-opt" onclick="selectCat(this)">Operations</div><div class="cat-opt" onclick="selectCat(this)">Facilities</div>
+            <div class="cat-opt" onclick="selectCat(this)">Finance</div><div class="cat-opt" onclick="selectCat(this)">Events</div>
+            <div class="cat-opt" onclick="selectCat(this)">Governance</div><div class="cat-opt" onclick="selectCat(this)">Bowls</div>
+            <div class="cat-opt" onclick="selectCat(this)">Marketing</div><div class="cat-opt" onclick="selectCat(this)">Fundraising</div>
+            <div class="cat-opt" onclick="selectCat(this)">Membership</div><div class="cat-opt" onclick="selectCat(this)">Food and Beverage</div>
+            <div class="cat-opt" onclick="selectCat(this)">Legal</div><div class="cat-opt" onclick="selectCat(this)">Other</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-header">Description</div>
+      <div class="form-section-body">
+        <div class="form-group"><label class="form-label">Summary <span class="req">*</span></label><textarea class="form-control" id="pf-summary" oninput="checkProjectSubmit()"></textarea></div>
+        <div class="form-group"><label class="form-label">Background / Rationale</label><textarea class="form-control" id="pf-background" style="min-height:70px"></textarea></div>
+        <div class="form-group"><label class="form-label">Risks / Dependencies</label><textarea class="form-control" id="pf-risks" style="min-height:60px"></textarea></div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-header">Financials</div>
+      <div class="form-section-body">
+        <div class="finance-grid">
+          <div class="form-group"><label class="form-label">Est. cost ($)</label><input type="text" class="form-control" id="pf-cost"></div>
+          <div class="form-group"><label class="form-label">Funding source</label><input type="text" class="form-control" id="pf-funding"></div>
+          <div class="form-group"><label class="form-label">Projected saving / revenue</label><input type="text" class="form-control" id="pf-saving"></div>
+          <div class="form-group"><label class="form-label">Payback period</label><input type="text" class="form-control" id="pf-payback"></div>
+        </div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-header">Sub-projects</div>
+      <div class="form-section-body">
+        <div class="suggested-subprojects">
+          <div class="suggested-label">Click to add:</div>
+          <div class="suggested-grid" id="suggested-grid">
+            <div class="suggested-pill" onclick="addSuggested(this)">+ Design &amp; Architecture</div>
+            <div class="suggested-pill" onclick="addSuggested(this)">+ Financials &amp; Funding</div>
+            <div class="suggested-pill" onclick="addSuggested(this)">+ Approvals &amp; Permits</div>
+            <div class="suggested-pill" onclick="addSuggested(this)">+ Contractor / Procurement</div>
+            <div class="suggested-pill" onclick="addSuggested(this)">+ Marketing &amp; Comms</div>
+            <div class="suggested-pill" onclick="addSuggested(this)">+ Legal &amp; Compliance</div>
+            <div class="suggested-pill" onclick="addCustomSubproject()">+ Add custom…</div>
+          </div>
+        </div>
+        <div class="new-sp-list" id="new-sp-list"></div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-header">Attachments</div>
+      <div class="form-section-body">
+        <div class="upload-zone" onclick="document.getElementById('pf-files').click()">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--muted)"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          <div class="upload-zone-text"><strong>Add quotes, mockups, reports</strong></div>
+          <input type="file" id="pf-files" multiple onchange="handleProjectFiles(event)">
+        </div>
+        <div class="file-list" id="pf-file-list"></div>
+      </div>
+    </div>
+    <button class="btn-submit-form" id="btn-submit-project" disabled onclick="submitProject()">Save to Project Library</button>
+    <div class="form-progress" id="project-form-progress"></div>
+  </div>
+</div>
+
+<div id="screen-grant-form" class="screen main-content">
+  <div class="form-header">
+    <button class="btn-back" onclick="backToHome('grants')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      Back
+    </button>
+    <span class="form-header-title">New Grant</span>
+  </div>
+  <div class="form-body">
+    <div class="form-section">
+      <div class="form-section-header">Grant Details</div>
+      <div class="form-section-body">
+        <div class="form-group"><label class="form-label">Grant name <span class="req">*</span></label><input type="text" class="form-control" id="gf-name" oninput="checkGrantSubmit()"></div>
+        <div class="form-group"><label class="form-label">Funder</label><input type="text" class="form-control" id="gf-funder"></div>
+        <div class="form-group"><label class="form-label">Amount available</label><input type="text" class="form-control" id="gf-amount" placeholder="e.g. Up to $15,000"></div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Opens</label><input type="date" class="form-control" id="gf-open"></div>
+          <div class="form-group"><label class="form-label">Closes</label><input type="date" class="form-control" id="gf-close" oninput="checkGrantSubmit()"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Status</label>
+          <select class="form-control" id="gf-status">
+            <option>Open</option><option>Upcoming</option><option>Closed</option><option>Submitted</option><option>Awarded</option><option>Unsuccessful</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Eligibility notes</label><textarea class="form-control" id="gf-eligibility" style="min-height:70px"></textarea></div>
+        <div class="form-group"><label class="form-label">Application URL</label><input type="url" class="form-control" id="gf-url" placeholder="https://…"></div>
+        <div class="form-hint" style="margin-top:-8px">Paste-a-URL auto-fill isn't available in this build — browsers block reading other websites' content directly for security (CORS). Enter details manually for now.</div>
+      </div>
+    </div>
+    <button class="btn-submit-form" id="btn-submit-grant" disabled onclick="submitGrant()">Save Grant</button>
+    <div class="form-progress" id="grant-form-progress"></div>
+  </div>
+</div>
+
+<nav class="bottom-tabs" id="bottom-tabs" style="display:none">
+  <button class="bottom-tab active" id="btab-projects" onclick="switchMainTab('projects')">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+    Projects
+  </button>
+  <button class="bottom-tab" id="btab-grants" onclick="switchMainTab('grants')">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
+    Grants
+  </button>
+  <button class="bottom-tab" id="btab-activity" onclick="switchMainTab('activity')">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+    Activity
+  </button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG ──
+const CLIENT_ID = '831d72e1-4c03-4647-ab40-d074653ef54a';
+const TENANT_ID = '3e8f57de-d795-48c9-8537-0b1caae52c09';
+const REDIRECT_URI = 'https://leichhardtbowlo.github.io/project-library/index.html';
+const LIBRARY_NAME = 'Project Library Files';
+const NOTES_LIST_NAME = 'Project Notes';
+const GRANTS_LIST_NAME = 'Grants';
+const SP_HOST = 'leichhardtbowlingclub.sharepoint.com';
+
+const msalConfig = { auth: { clientId: CLIENT_ID, authority: `https://login.microsoftonline.com/${TENANT_ID}`, redirectUri: REDIRECT_URI }, cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false } };
+const msalInstance = new msal.PublicClientApplication(msalConfig);
+const scopes = ['https://graph.microsoft.com/Sites.ReadWrite.All', 'https://graph.microsoft.com/Files.ReadWrite.All'];
+
+let currentUser = null;
+let siteId=null, driveId=null, libraryListId=null, notesListId=null, grantsListId=null;
+let allProjects = [];
+let allGrants = [];
+let selectedProjectFiles = [];
+let newSubprojects = [];
+let selectedStage = 'Active';
+let selectedCategory = '';
+let currentProjectId = null;
+let currentProjectData = null;
+let editMode = false;
+let openSpIndex = null;
+
+const STAGES = [
+  {key:'Active',label:'Active'},{key:'Confirmed',label:'Confirmed Future'},
+  {key:'Wishlist',label:'Wishlist'},{key:'Completed',label:'Completed'},{key:'Archived',label:'Archived'}
+];
+const LANES = ['Active','Confirmed','Wishlist','Completed','Archived'];
+const LANE_LABELS = {Active:'Active',Confirmed:'Confirmed Future',Wishlist:'Wishlist',Completed:'Completed',Archived:'Archived'};
+
+// ── AUTH ──
+function signIn() { msalInstance.loginRedirect({ scopes, prompt: 'select_account' }); }
+async function getToken() {
+  try { return (await msalInstance.acquireTokenSilent({ scopes, account: currentUser })).accessToken; }
+  catch (e) { msalInstance.acquireTokenRedirect({ scopes }); return new Promise(() => {}); }
+}
+function signOut() { msalInstance.logoutRedirect(); }
+function showLoginButton() {
+  document.getElementById('login-checking').style.display = 'none';
+  document.getElementById('btn-login').style.display = 'block';
+  document.getElementById('login-note').style.display = 'block';
+}
+
+async function onSignedIn() {
+  document.getElementById('app-header').style.display = 'flex';
+  document.getElementById('screen-login').classList.remove('active');
+  document.getElementById('user-chip').textContent = currentUser.name || currentUser.username;
+  document.getElementById('bottom-tabs').style.display = 'flex';
+  document.getElementById('fab').classList.add('visible');
+  showScreen('home');
+  try {
+    await initSiteAndLists();
+    await Promise.all([loadProjects(), loadGrants()]);
+    renderActivity();
+  } catch (e) {
+    console.error(e);
+    document.getElementById('lanes-container').innerHTML = `<div class="empty-state"><h3 style="color:var(--high)">Couldn't connect to SharePoint</h3><p style="margin-top:8px;font-size:13px">${escHtml(e.message||String(e))}</p></div>`;
+  }
+}
+
+async function apiGet(url) {
+  const token = await getToken();
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function apiPost(url, body) {
+  const token = await getToken();
+  const res = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function apiPatch(url, body) {
+  const token = await getToken();
+  const res = await fetch(url, { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(await res.text());
+  return res.status === 204 ? null : res.json();
+}
+async function apiPut(url, data, contentType) {
+  const token = await getToken();
+  const res = await fetch(url, { method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': contentType || 'application/octet-stream' }, body: data });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function initSiteAndLists() {
+  const siteRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${SP_HOST}:/`);
+  siteId = siteRes.id;
+  const listsRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists?$top=999`);
+  const normalise = s => String(s||'').replace(/&/g,'').replace(/\s+/g,' ').trim().toLowerCase();
+  const find = name => listsRes.value.find(l=>l.displayName===name) || listsRes.value.find(l=>normalise(l.displayName)===normalise(name));
+
+  const lib = find(LIBRARY_NAME); if (!lib) throw new Error(`Could not find library "${LIBRARY_NAME}"`);
+  libraryListId = lib.id;
+  const notes = find(NOTES_LIST_NAME); if (!notes) throw new Error(`Could not find list "${NOTES_LIST_NAME}"`);
+  notesListId = notes.id;
+  const grants = find(GRANTS_LIST_NAME); if (!grants) throw new Error(`Could not find list "${GRANTS_LIST_NAME}"`);
+  grantsListId = grants.id;
+
+  const drivesRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives`);
+  const targetDrive = drivesRes.value.find(d=>d.name===LIBRARY_NAME) || drivesRes.value.find(d=>normalise(d.name)===normalise(LIBRARY_NAME));
+  if (!targetDrive) throw new Error(`Could not find drive for "${LIBRARY_NAME}"`);
+  driveId = targetDrive.id;
+}
+
+// ── NAV ──
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  const isHome = name==='home';
+  document.getElementById('bottom-tabs').style.display = isHome ? 'flex' : 'none';
+  document.getElementById('fab').classList.toggle('visible', isHome);
+  window.scrollTo(0,0);
+}
+function backToHome(tab) { showScreen('home'); if (tab) switchMainTab(tab); }
+function switchMainTab(tab) {
+  ['projects','grants','activity'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display = t===tab?'block':'none';
+    document.getElementById('btab-'+t).classList.toggle('active', t===tab);
+  });
+  document.getElementById('fab').classList.toggle('visible', tab==='projects');
+  if (tab==='activity') renderActivity();
+  window.scrollTo(0,0);
+}
+
+// ── LOAD PROJECTS ──
+async function loadProjects() {
+  const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root/children?expand=listItem($expand=fields)&$top=999`;
+  const res = await apiGet(url);
+  allProjects = (res.value||[]).filter(item=>item.folder);
+  renderLanes();
+}
+function getSubprojects(fields) {
+  try { return JSON.parse(fields.SubprojectsJSON || '[]'); } catch(e) { return []; }
+}
+function renderLanes() {
+  const search = document.getElementById('project-search').value.toLowerCase();
+  const container = document.getElementById('lanes-container');
+  container.innerHTML = LANES.map(stage => {
+    const items = allProjects.filter(p => {
+      const f = p.listItem?.fields||{};
+      if ((f.ProjectStage||'Wishlist') !== stage) return false;
+      if (search && !(f.Title||'').toLowerCase().includes(search)) return false;
+      return true;
+    });
+    const isOpen = stage==='Active' || stage==='Confirmed';
+    const cardsHtml = items.map(p => {
+      const f = p.listItem?.fields||{};
+      const subs = getSubprojects(f);
+      const doneCnt = subs.filter(s=>s.status==='done').length;
+      const pillText = subs.length ? `${doneCnt} of ${subs.length} complete` : 'No sub-projects yet';
+      const modified = p.lastModifiedDateTime ? timeAgo(p.lastModifiedDateTime) : '';
+      return `
+      <div class="project-card pc-${stage.toLowerCase()}" onclick="openProject('${p.id}')">
+        <div class="card-body">
+          <div class="card-title">${escHtml(f.Title||'Untitled')}</div>
+          <div class="card-meta">
+            <span class="badge badge-${stage.toLowerCase()}">${LANE_LABELS[stage]}</span>
+            ${f.ProjectCategory?`<span class="badge badge-cat">${escHtml(f.ProjectCategory)}</span>`:''}
+          </div>
+          <div class="card-summary">${escHtml(f.ProjectSummary||'')}</div>
+          <div class="card-footer">
+            <span class="subproject-pill ${subs.length && doneCnt===subs.length ? 'all-done':''}">${pillText}</span>
+            <span class="card-timestamp">${modified}</span>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    return `
+    <div class="lane">
+      <div class="lane-header" onclick="toggleLane('${stage}')">
+        <div class="lane-left"><div class="lane-dot lane-dot-${stage.toLowerCase()}"></div><span class="lane-title">${LANE_LABELS[stage]}</span><span class="lane-count">${items.length} project${items.length!==1?'s':''}</span></div>
+        <svg class="lane-chevron ${isOpen?'open':''}" id="chevron-${stage}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+      <div class="lane-body ${isOpen?'open':''}" id="lane-${stage}">${items.length ? cardsHtml : '<p style="padding:12px;font-size:13px;color:var(--muted)">No projects in this stage.</p>'}</div>
+    </div>`;
+  }).join('');
+}
+function toggleLane(stage) {
+  const body = document.getElementById('lane-'+stage);
+  const chev = document.getElementById('chevron-'+stage);
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  chev.classList.toggle('open', !isOpen);
+}
+
+// ── PROJECT DETAIL ──
+async function openProject(id) {
+  currentProjectId = id; openSpIndex = null; editMode = false;
+  showScreen('detail');
+  document.getElementById('detail-body').innerHTML = '<div class="loading-spinner">Loading…</div>';
+  try {
+    const item = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${id}?expand=listItem($expand=fields)`);
+    currentProjectData = item;
+    document.getElementById('detail-header-title').textContent = item.listItem.fields.Title || 'Project';
+    document.getElementById('btn-edit').className = 'btn-edit-toggle';
+    document.getElementById('btn-edit').textContent = 'Edit';
+    document.getElementById('edit-save-bar').className = 'edit-save-bar';
+    renderStageStrip(item.listItem.fields.ProjectStage || 'Wishlist');
+    await renderProjectDetail(item, false);
+  } catch (e) {
+    document.getElementById('detail-body').innerHTML = `<p style="color:var(--high);padding:20px">Error: ${escHtml(e.message)}</p>`;
+  }
+}
+function renderStageStrip(current) {
+  document.getElementById('stage-strip').innerHTML = STAGES.map(s=>`<button class="stage-pill-btn ${s.key===current?'active-stage-'+s.key.toLowerCase():''}" onclick="changeStage('${s.key}')">${s.label}</button>`).join('');
+}
+async function changeStage(newStage) {
+  try {
+    await apiPatch(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${currentProjectId}/listItem/fields`, { ProjectStage: newStage });
+    currentProjectData.listItem.fields.ProjectStage = newStage;
+    renderStageStrip(newStage);
+    document.querySelector('.detail-badges').innerHTML = badgesHtml(currentProjectData.listItem.fields);
+    showToast('Stage updated', 'success');
+    await loadProjects();
+  } catch (e) { showToast('Update failed: '+e.message, 'error'); }
+}
+function badgesHtml(f) {
+  const stage = f.ProjectStage || 'Wishlist';
+  return `<span class="badge badge-${stage.toLowerCase()}">${LANE_LABELS[stage]||stage}</span>${f.ProjectCategory?`<span class="badge badge-cat">${escHtml(f.ProjectCategory)}</span>`:''}`;
+}
+
+async function renderProjectDetail(item, editing) {
+  const f = item.listItem.fields;
+  const subs = getSubprojects(f);
+
+  const filesRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${item.id}/children`);
+  const files = (filesRes.value||[]).filter(x=>x.file);
+
+  const notesRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${notesListId}/items?expand=fields&$top=999`);
+  const notes = (notesRes.value||[]).filter(n=>n.fields.ProjectId===item.id).sort((a,b)=>new Date(b.fields.NoteDate||b.createdDateTime)-new Date(a.fields.NoteDate||a.createdDateTime));
+
+  document.getElementById('detail-body').innerHTML = `
+    <div class="detail-info">
+      ${editing ? `<input class="detail-title-input" id="edit-title" value="${escHtml(f.Title||'')}">` : `<div class="detail-title">${escHtml(f.Title||'Untitled')}</div>`}
+      <div class="detail-badges">${badgesHtml(f)}</div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-header"><span class="detail-section-title">Summary</span></div>
+      <div class="detail-field-inner">
+        ${editing ? `<textarea class="detail-text-edit" id="edit-summary">${escHtml(f.ProjectSummary||'')}</textarea>` : `<div class="detail-text-block">${escHtml(f.ProjectSummary||'–')}</div>`}
+        <div style="margin-top:12px"><div class="detail-field-label">Background</div>${editing?`<textarea class="detail-text-edit" id="edit-background">${escHtml(f.ProjectBackground||'')}</textarea>`:`<div class="detail-text-block">${escHtml(f.ProjectBackground||'–')}</div>`}</div>
+        <div style="margin:12px 0 14px"><div class="detail-field-label">Risks</div>${editing?`<textarea class="detail-text-edit" id="edit-risks">${escHtml(f.ProjectRisks||'')}</textarea>`:`<div class="detail-text-block">${escHtml(f.ProjectRisks||'–')}</div>`}</div>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-header"><span class="detail-section-title">Financials</span></div>
+      <div style="padding:0 14px 14px">
+        <div class="finance-cards" style="margin-bottom:10px">
+          <div class="fin-card"><div class="fin-card-label">Est. Cost</div><div class="fin-card-value">${editing?`<input class="sp-control" id="edit-cost" value="${escHtml(f.EstCost||'')}">`:escHtml(f.EstCost||'–')}</div></div>
+          <div class="fin-card"><div class="fin-card-label">Saving/Revenue</div><div class="fin-card-value">${editing?`<input class="sp-control" id="edit-saving" value="${escHtml(f.ProjectedSaving||'')}">`:escHtml(f.ProjectedSaving||'–')}</div></div>
+          <div class="fin-card"><div class="fin-card-label">Payback</div><div class="fin-card-value">${editing?`<input class="sp-control" id="edit-payback" value="${escHtml(f.PaybackPeriod||'')}">`:escHtml(f.PaybackPeriod||'–')}</div></div>
+        </div>
+        <div class="detail-field"><div class="detail-field-label">Funding source</div><div class="detail-text-block">${editing?`<input class="sp-control" id="edit-funding" value="${escHtml(f.FundingSource||'')}">`:escHtml(f.FundingSource||'–')}</div></div>
+      </div>
+    </div>
+
+    ${renderSubprojectsSection(subs)}
+
+    <div class="detail-section">
+      <div class="detail-section-header"><span class="detail-section-title">Update Log</span></div>
+      <div style="padding:0 14px 14px">
+        <div class="update-log-entries">${notes.length?notes.map(n=>`<div class="update-log-entry"><div class="update-log-meta">${n.fields.NoteDate?new Date(n.fields.NoteDate).toLocaleString('en-AU',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):''} · ${escHtml(n.fields.Author0||'')}</div><div class="update-log-text">${escHtml(n.fields.NoteText||'')}</div></div>`).join(''):'<p style="font-size:13px;color:var(--muted);font-style:italic">No updates yet.</p>'}</div>
+        <textarea class="update-note-input" id="note-input" placeholder="Add a progress note…"></textarea>
+        <button class="btn-add-note" onclick="addProjectNote()">Add Note</button>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-header"><span class="detail-section-title">Project Files</span></div>
+      <div style="padding:0 14px 14px">
+        <div class="attachment-list">${files.length?files.map(fl=>`<a class="attachment-link" href="${escHtml(fl.webUrl)}" target="_blank"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--muted);flex-shrink:0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg><span class="attachment-name">${escHtml(fl.name)}</span></a>`).join(''):'<p style="font-size:13px;color:var(--muted)">No files yet.</p>'}</div>
+        <input type="file" id="detail-file-input" multiple style="display:none" onchange="uploadProjectFile(event)">
+        <button class="btn-add-attachment" onclick="document.getElementById('detail-file-input').click()">Attach project-level file</button>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div style="padding:14px">
+        <button class="btn-download-pack" onclick="downloadProjectPack()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download Project Pack
+        </button>
+        <div class="pack-note">Fresh project summary + all sub-project notes + files in one ZIP</div>
+      </div>
+      <div class="danger-zone">
+        <button class="btn-archive-project" onclick="archiveProject()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21,8 21,21 3,21 3,8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+          Archive this project
+        </button>
+      </div>
+    </div>
+  `;
+  if (editing) restoreOpenSp();
+}
+
+function renderSubprojectsSection(subs) {
+  const doneCnt = subs.filter(s=>s.status==='done').length;
+  const items = subs.map((sp,i) => `
+    <div class="sp-item ${openSpIndex===i?'sp-open':''}" id="sp-item-${i}">
+      <div class="sp-item-header" onclick="toggleSp(${i})">
+        <div class="sp-status-dot ${sp.status}"></div>
+        <span class="sp-name">${escHtml(sp.name)}</span>
+        <div class="sp-meta-row">
+          <span class="sp-status-badge sp-badge-${sp.status}">${sp.status==='pending'?'Not started':sp.status==='inprogress'?'In progress':'Done'}</span>
+          <svg class="sp-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+      </div>
+      <div class="sp-item-body">
+        <div class="sp-body-grid">
+          <div><div class="sp-field-label">Status</div><div class="sp-status-row">
+            <div class="sp-status-opt ${sp.status==='pending'?'sel-pending':''}" onclick="setSpStatus(${i},'pending')">Not started</div>
+            <div class="sp-status-opt ${sp.status==='inprogress'?'sel-inprogress':''}" onclick="setSpStatus(${i},'inprogress')">In progress</div>
+            <div class="sp-status-opt ${sp.status==='done'?'sel-done':''}" onclick="setSpStatus(${i},'done')">Done</div>
+          </div></div>
+          <div><div class="sp-field-label">Assigned to</div><input class="sp-control" value="${escHtml(sp.assignee||'')}" oninput="updateSpField(${i},'assignee',this.value)"></div>
+          <div style="grid-column:1/-1"><div class="sp-field-label">Notes / Details</div><textarea class="sp-control" oninput="updateSpField(${i},'notes',this.value)">${escHtml(sp.notes||'')}</textarea></div>
+        </div>
+        <div class="sp-save-row">
+          <button class="btn-sp-archive" onclick="removeSubproject(${i})">Remove</button>
+          <button class="btn-sp-save" onclick="saveSubprojects()">Save</button>
+        </div>
+      </div>
+    </div>`).join('');
+
+  const suggestions = ['Design & Architecture','Financials & Funding','Approvals & Permits','Contractor / Procurement','Marketing & Comms','Legal & Compliance']
+    .filter(s => !subs.find(sp=>sp.name===s)).slice(0,5)
+    .map(s=>`<div class="add-sp-pill" onclick="addSubprojectToProject('${escHtml(s)}')">+ ${s}</div>`).join('');
+
+  return `
+    <div class="subprojects-section">
+      <div class="subprojects-header"><span class="subprojects-title">Sub-projects</span><span class="subprojects-summary">${doneCnt} of ${subs.length} complete</span></div>
+      <div class="subproject-accordion">${items}</div>
+      <div class="add-subproject-bar">${suggestions}<div class="add-sp-pill" onclick="addCustomSpToProject()">+ Custom…</div></div>
+    </div>`;
+}
+function toggleSp(i) {
+  openSpIndex = openSpIndex===i ? null : i;
+  document.querySelectorAll('.sp-item').forEach((el,idx)=>el.classList.toggle('sp-open', idx===openSpIndex));
+}
+function restoreOpenSp() { if (openSpIndex!==null) { const els=document.querySelectorAll('.sp-item'); if(els[openSpIndex]) els[openSpIndex].classList.add('sp-open'); } }
+function updateSpField(i, field, value) {
+  const subs = getSubprojects(currentProjectData.listItem.fields);
+  subs[i][field] = value;
+  currentProjectData.listItem.fields.SubprojectsJSON = JSON.stringify(subs);
+}
+function setSpStatus(i, status) {
+  const subs = getSubprojects(currentProjectData.listItem.fields);
+  subs[i].status = status;
+  currentProjectData.listItem.fields.SubprojectsJSON = JSON.stringify(subs);
+  saveSubprojects(true);
+}
+async function saveSubprojects(silent) {
+  try {
+    await apiPatch(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${currentProjectId}/listItem/fields`, { SubprojectsJSON: currentProjectData.listItem.fields.SubprojectsJSON });
+    if (!silent) showToast('Sub-project saved', 'success');
+    await loadProjects();
+  } catch (e) { showToast('Save failed: '+e.message, 'error'); }
+}
+function addSubprojectToProject(name) {
+  const subs = getSubprojects(currentProjectData.listItem.fields);
+  subs.push({name, status:'pending', assignee:'', notes:''});
+  currentProjectData.listItem.fields.SubprojectsJSON = JSON.stringify(subs);
+  openSpIndex = subs.length-1;
+  renderProjectDetail(currentProjectData, editMode);
+  saveSubprojects(true);
+}
+function addCustomSpToProject() {
+  const name = prompt('Sub-project name:');
+  if (name && name.trim()) addSubprojectToProject(name.trim());
+}
+function removeSubproject(i) {
+  const subs = getSubprojects(currentProjectData.listItem.fields);
+  subs.splice(i,1);
+  currentProjectData.listItem.fields.SubprojectsJSON = JSON.stringify(subs);
+  openSpIndex = null;
+  renderProjectDetail(currentProjectData, editMode);
+  saveSubprojects(true);
+}
+
+function toggleEdit(cancel) {
+  editMode = cancel ? false : !editMode;
+  document.getElementById('btn-edit').textContent = editMode?'Editing…':'Edit';
+  document.getElementById('btn-edit').className = 'btn-edit-toggle'+(editMode?' editing':'');
+  document.getElementById('edit-save-bar').className = 'edit-save-bar'+(editMode?' visible':'');
+  renderProjectDetail(currentProjectData, editMode);
+}
+async function saveEdit() {
+  const f = currentProjectData.listItem.fields;
+  const grab = id => document.getElementById(id)?.value;
+  const updates = {
+    Title: grab('edit-title') ?? f.Title,
+    ProjectSummary: grab('edit-summary') ?? f.ProjectSummary,
+    ProjectBackground: grab('edit-background') ?? f.ProjectBackground,
+    ProjectRisks: grab('edit-risks') ?? f.ProjectRisks,
+    EstCost: grab('edit-cost') ?? f.EstCost,
+    ProjectedSaving: grab('edit-saving') ?? f.ProjectedSaving,
+    PaybackPeriod: grab('edit-payback') ?? f.PaybackPeriod,
+    FundingSource: grab('edit-funding') ?? f.FundingSource
+  };
+  try {
+    await apiPatch(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${currentProjectId}/listItem/fields`, updates);
+    Object.assign(f, updates);
+    editMode = false;
+    document.getElementById('detail-header-title').textContent = f.Title;
+    document.getElementById('btn-edit').textContent = 'Edit';
+    document.getElementById('btn-edit').className = 'btn-edit-toggle';
+    document.getElementById('edit-save-bar').className = 'edit-save-bar';
+    await renderProjectDetail(currentProjectData, false);
+    showToast('Changes saved', 'success');
+    await loadProjects();
+  } catch (e) { showToast('Save failed: '+e.message, 'error'); }
+}
+
+async function addProjectNote() {
+  const input = document.getElementById('note-input');
+  const text = input.value.trim();
+  if (!text) return;
+  try {
+    await apiPost(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${notesListId}/items`, { fields: { Title:'Note', ProjectId: currentProjectId, Author0: currentUser?.name||currentUser?.username||'User', NoteDate: new Date().toISOString(), NoteText: text } });
+    showToast('Note added', 'success');
+    await renderProjectDetail(currentProjectData, editMode);
+  } catch (e) { showToast('Failed: '+e.message, 'error'); }
+}
+
+async function uploadProjectFile(e) {
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+  showToast('Uploading…');
+  try {
+    for (const file of files) {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      await apiPut(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${currentProjectId}:/${safeName}:/content`, file, file.type||'application/octet-stream');
+    }
+    showToast('File added', 'success');
+    e.target.value='';
+    await renderProjectDetail(currentProjectData, editMode);
+  } catch (e2) { showToast('Upload failed: '+e2.message, 'error'); }
+}
+
+async function archiveProject() {
+  if (!confirm('Archive this project? It will be moved to the Archived lane.')) return;
+  try {
+    await apiPatch(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${currentProjectId}/listItem/fields`, { ProjectStage: 'Archived' });
+    showToast('Project archived', 'success');
+    await loadProjects();
+    backToHome();
+  } catch (e) { showToast('Archive failed: '+e.message, 'error'); }
+}
+
+// ── PROJECT DOCX / PACK ──
+async function generateProjectDocx(f, subs) {
+  const { Document, Paragraph, TextRun, HeadingLevel, Packer, AlignmentType } = docx;
+  const heading = (t)=>new Paragraph({heading:HeadingLevel.HEADING_2,spacing:{before:300,after:120},children:[new TextRun({text:t,color:'0D2141',bold:true})]});
+  const label = (t)=>new TextRun({text:t+': ',bold:true});
+  const body = (t)=>new TextRun({text:t||'—'});
+  const children = [
+    new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:60},children:[new TextRun({text:'Leichhardt Bowling & Recreation Club Ltd',bold:true,size:20,color:'0D2141'})]}),
+    new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:300},children:[new TextRun({text:'Project Summary',size:32,bold:true,color:'0D2141'})]}),
+    heading('Overview'),
+    new Paragraph({spacing:{after:80},children:[label('Title'),body(f.Title)]}),
+    new Paragraph({spacing:{after:80},children:[label('Stage'),body(f.ProjectStage)]}),
+    new Paragraph({spacing:{after:200},children:[label('Category'),body(f.ProjectCategory)]}),
+    heading('Summary'), new Paragraph({spacing:{after:200},children:[body(f.ProjectSummary)]}),
+    heading('Background'), new Paragraph({spacing:{after:200},children:[body(f.ProjectBackground)]}),
+    heading('Risks'), new Paragraph({spacing:{after:200},children:[body(f.ProjectRisks)]}),
+    heading('Financials'),
+    new Paragraph({spacing:{after:60},children:[label('Est. cost'),body(f.EstCost)]}),
+    new Paragraph({spacing:{after:60},children:[label('Funding source'),body(f.FundingSource)]}),
+    new Paragraph({spacing:{after:60},children:[label('Projected saving/revenue'),body(f.ProjectedSaving)]}),
+    new Paragraph({spacing:{after:200},children:[label('Payback period'),body(f.PaybackPeriod)]}),
+    heading('Sub-Projects'),
+  ];
+  if (subs.length) {
+    subs.forEach(sp => {
+      children.push(new Paragraph({spacing:{after:60},children:[label(sp.name),body(sp.status==='pending'?'Not started':sp.status==='inprogress'?'In progress':'Done')]}));
+      if (sp.notes) children.push(new Paragraph({spacing:{after:100},children:[body('  '+sp.notes)]}));
+    });
+  } else {
+    children.push(new Paragraph({children:[body('No sub-projects recorded.')]}));
+  }
+  const doc = new Document({ sections:[{properties:{}, children}] });
+  return await Packer.toBlob(doc);
+}
+async function downloadProjectPack() {
+  showToast('Building pack…');
+  try {
+    const item = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${currentProjectId}?expand=listItem($expand=fields)`);
+    const f = item.listItem.fields;
+    const subs = getSubprojects(f);
+    const docBlob = await generateProjectDocx(f, subs);
+    const zip = new JSZip();
+    zip.file('Project_Summary.docx', docBlob);
+    const filesRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${currentProjectId}/children`);
+    const files = (filesRes.value||[]).filter(x=>x.file);
+    for (const fl of files) {
+      const token = await getToken();
+      const fileRes = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${fl.id}/content`, {headers:{Authorization:`Bearer ${token}`}});
+      zip.file(fl.name, await fileRes.blob());
+    }
+    const zipBlob = await zip.generateAsync({type:'blob'});
+    const safeTitle = (f.Title||'Project').replace(/[^a-zA-Z0-9 ]/g,'').replace(/\s+/g,'-');
+    triggerDownload(zipBlob, `${safeTitle}_Pack.zip`);
+    showToast('Pack downloaded', 'success');
+  } catch (e) { showToast('Pack failed: '+e.message, 'error'); console.error(e); }
+}
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ── NEW PROJECT FORM ──
+function selectStage(el) {
+  document.querySelectorAll('#pf-stage-selector .stage-opt').forEach(o=>o.className='stage-opt');
+  el.classList.add('sel-'+el.dataset.value.toLowerCase());
+  selectedStage = el.dataset.value;
+}
+function selectCat(el) {
+  document.querySelectorAll('#pf-cat-selector .cat-opt').forEach(o=>o.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedCategory = el.textContent.trim();
+}
+function addSuggested(el) {
+  if (el.classList.contains('added')) return;
+  el.classList.add('added');
+  newSubprojects.push(el.textContent.trim().replace(/^\+\s*/,''));
+  renderNewSps();
+}
+function addCustomSubproject() {
+  const n = prompt('Sub-project name:');
+  if (n && n.trim()) { newSubprojects.push(n.trim()); renderNewSps(); }
+}
+function renderNewSps() {
+  document.getElementById('new-sp-list').innerHTML = newSubprojects.map((s,i)=>`<div class="new-sp-item"><span>${escHtml(s)}</span><button class="file-chip-remove" onclick="newSubprojects.splice(${i},1);renderNewSps()">×</button></div>`).join('');
+}
+function checkProjectSubmit() {
+  document.getElementById('btn-submit-project').disabled = !(document.getElementById('pf-title').value.trim() && document.getElementById('pf-summary').value.trim());
+}
+function handleProjectFiles(e) {
+  for (const f of e.target.files) selectedProjectFiles.push(f);
+  renderProjectFileList();
+  e.target.value='';
+}
+function renderProjectFileList() {
+  document.getElementById('pf-file-list').innerHTML = selectedProjectFiles.map((f,i)=>`<div class="file-chip"><span class="file-chip-name">${escHtml(f.name)}</span><button class="file-chip-remove" onclick="selectedProjectFiles.splice(${i},1);renderProjectFileList()">×</button></div>`).join('');
+}
+async function submitProject() {
+  const btn = document.getElementById('btn-submit-project');
+  btn.disabled = true;
+  const prog = document.getElementById('project-form-progress');
+  const title = document.getElementById('pf-title').value.trim();
+
+  const fields = {
+    Title: title,
+    ProjectStage: selectedStage,
+    ProjectCategory: selectedCategory || 'Other',
+    ProjectSummary: document.getElementById('pf-summary').value.trim(),
+    ProjectBackground: document.getElementById('pf-background').value.trim(),
+    ProjectRisks: document.getElementById('pf-risks').value.trim(),
+    EstCost: document.getElementById('pf-cost').value.trim(),
+    FundingSource: document.getElementById('pf-funding').value.trim(),
+    ProjectedSaving: document.getElementById('pf-saving').value.trim(),
+    PaybackPeriod: document.getElementById('pf-payback').value.trim(),
+    SubprojectsJSON: JSON.stringify(newSubprojects.map(n=>({name:n,status:'pending',assignee:'',notes:''})))
+  };
+
+  try {
+    prog.textContent = 'Creating folder…';
+    const safeFolderName = title.replace(/["*:<>?/\\|]/g,'-');
+    const newFolder = await apiPost(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root/children`, { name: safeFolderName, folder:{}, '@microsoft.graph.conflictBehavior':'rename' });
+
+    prog.textContent = 'Saving project details…';
+    await apiPatch(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${newFolder.id}/listItem/fields`, fields);
+
+    if (selectedProjectFiles.length) {
+      prog.textContent = `Uploading ${selectedProjectFiles.length} file(s)…`;
+      for (const file of selectedProjectFiles) {
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+        await apiPut(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${newFolder.id}:/${safeName}:/content`, file, file.type||'application/octet-stream');
+      }
+    }
+    prog.textContent = '';
+    showToast('Project saved', 'success');
+    resetProjectForm();
+    await loadProjects();
+    backToHome();
+  } catch (e) {
+    btn.disabled = false;
+    prog.textContent = 'Error: '+e.message;
+    showToast('Save failed', 'error');
+    console.error(e);
+  }
+}
+function resetProjectForm() {
+  document.getElementById('pf-title').value='';
+  document.getElementById('pf-summary').value='';
+  document.getElementById('pf-background').value='';
+  document.getElementById('pf-risks').value='';
+  document.getElementById('pf-cost').value='';
+  document.getElementById('pf-funding').value='';
+  document.getElementById('pf-saving').value='';
+  document.getElementById('pf-payback').value='';
+  selectedProjectFiles=[]; renderProjectFileList();
+  newSubprojects=[]; renderNewSps();
+  document.querySelectorAll('#pf-stage-selector .stage-opt').forEach(o=>o.className='stage-opt');
+  document.querySelector('#pf-stage-selector [data-value="Active"]').classList.add('sel-active');
+  selectedStage='Active';
+  document.querySelectorAll('#pf-cat-selector .cat-opt').forEach(o=>o.classList.remove('selected'));
+  selectedCategory='';
+  document.getElementById('btn-submit-project').disabled=true;
+}
+
+// ── GRANTS ──
+async function loadGrants() {
+  const res = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${grantsListId}/items?expand=fields&$top=999`);
+  allGrants = res.value||[];
+  renderGrants();
+}
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const diff = new Date(dateStr) - new Date();
+  return Math.ceil(diff / (1000*60*60*24));
+}
+function renderGrants() {
+  const container = document.getElementById('grants-container');
+  const now = new Date();
+  const closingSoon=[], open=[], upcoming=[], closed=[], done=[];
+  allGrants.forEach(g => {
+    const f = g.fields;
+    const status = f.Status || 'Open';
+    if (['Submitted','Awarded','Unsuccessful'].includes(status)) { done.push(g); return; }
+    if (status === 'Upcoming') { upcoming.push(g); return; }
+    const daysLeft = daysUntil(f.CloseDate);
+    if (status === 'Closed' || (daysLeft!==null && daysLeft<0)) { closed.push(g); return; }
+    if (daysLeft!==null && daysLeft<=14) { closingSoon.push(g); return; }
+    open.push(g);
+  });
+
+  const grantCard = (g, urgencyClass, extra) => {
+    const f = g.fields;
+    const daysLeft = daysUntil(f.CloseDate);
+    return `
+    <div class="grant-card" onclick="openGrant('${g.id}')">
+      <div class="grant-card-inner">
+        <div class="grant-urgency-bar ${urgencyClass}"></div>
+        <div class="grant-body">
+          <div class="grant-title">${escHtml(f.GrantName||'Untitled grant')}</div>
+          <div class="grant-funder">${escHtml(f.Funder||'')}</div>
+          <div class="grant-meta">
+            ${f.Amount?`<span class="grant-amount">${escHtml(f.Amount)}</span>`:''}
+            ${f.CloseDate?`<span class="grant-deadline ${daysLeft!==null&&daysLeft<=14?'urgent':''}">Closes ${new Date(f.CloseDate).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})}</span>`:''}
+            ${extra||''}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  };
+
+  let html = '';
+  if (closingSoon.length) html += `<div class="grants-section-title">🔴 Open — Closing Soon</div>` + closingSoon.map(g=>grantCard(g,'gb-critical',`<span class="countdown-badge">${daysUntil(g.fields.CloseDate)}d left</span>`)).join('');
+  if (open.length) html += `<div class="grants-section-title">🟡 Open</div>` + open.map(g=>grantCard(g,'gb-normal')).join('');
+  if (upcoming.length) html += `<div class="grants-section-title">🔵 Upcoming</div>` + upcoming.map(g=>grantCard(g,'gb-upcoming')).join('');
+  if (done.length) html += `<div class="grants-section-title">✅ Submitted / Awarded</div>` + done.map(g=>grantCard(g,'gb-awarded')).join('');
+  if (closed.length) html += `<div class="grants-section-title">⚫ Closed</div>` + closed.map(g=>grantCard(g,'gb-closed')).join('');
+
+  container.innerHTML = html || '<div class="empty-state"><h3>No grants yet</h3><p style="margin-top:6px;font-size:13px">Add one with the New Grant button.</p></div>';
+}
+
+function checkGrantSubmit() {
+  document.getElementById('btn-submit-grant').disabled = !(document.getElementById('gf-name').value.trim());
+}
+async function submitGrant() {
+  const btn = document.getElementById('btn-submit-grant');
+  btn.disabled = true;
+  const prog = document.getElementById('grant-form-progress');
+  const fields = {
+    Title: document.getElementById('gf-name').value.trim(),
+    GrantName: document.getElementById('gf-name').value.trim(),
+    Funder: document.getElementById('gf-funder').value.trim(),
+    Amount: document.getElementById('gf-amount').value.trim(),
+    OpenDate: document.getElementById('gf-open').value ? new Date(document.getElementById('gf-open').value).toISOString() : null,
+    CloseDate: document.getElementById('gf-close').value ? new Date(document.getElementById('gf-close').value).toISOString() : null,
+    Status: document.getElementById('gf-status').value,
+    EligibilityNotes: document.getElementById('gf-eligibility').value.trim(),
+    ApplicationURL: document.getElementById('gf-url').value.trim() ? { Url: document.getElementById('gf-url').value.trim(), Description: 'Application' } : null
+  };
+  try {
+    prog.textContent = 'Saving grant…';
+    await apiPost(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${grantsListId}/items`, { fields });
+    prog.textContent = '';
+    showToast('Grant saved', 'success');
+    resetGrantForm();
+    await loadGrants();
+    backToHome('grants');
+  } catch (e) {
+    btn.disabled = false;
+    prog.textContent = 'Error: '+e.message;
+    showToast('Save failed', 'error');
+    console.error(e);
+  }
+}
+function resetGrantForm() {
+  ['gf-name','gf-funder','gf-amount','gf-open','gf-close','gf-eligibility','gf-url'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('gf-status').value='Open';
+  document.getElementById('btn-submit-grant').disabled=true;
+}
+
+async function openGrant(id) {
+  showScreen('grant-detail');
+  document.getElementById('grant-detail-body').innerHTML = '<div class="loading-spinner">Loading…</div>';
+  try {
+    const g = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${grantsListId}/items/${id}?expand=fields`);
+    const f = g.fields;
+    document.getElementById('grant-detail-title').textContent = f.GrantName || 'Grant';
+    const daysLeft = daysUntil(f.CloseDate);
+    const isUrgent = daysLeft!==null && daysLeft<=14 && daysLeft>=0;
+
+    const notesRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${notesListId}/items?expand=fields&$top=999`);
+    const notes = (notesRes.value||[]).filter(n=>n.fields.ProjectId===`grant-${id}`).sort((a,b)=>new Date(b.fields.NoteDate||b.createdDateTime)-new Date(a.fields.NoteDate||a.createdDateTime));
+
+    document.getElementById('grant-detail-body').innerHTML = `
+      ${f.CloseDate ? `<div class="grant-deadline-banner ${!isUrgent?'safe':''}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+        <div><div class="grant-deadline-text">${daysLeft>=0?`Closes in ${daysLeft} day${daysLeft!==1?'s':''}`:'Closed'} — ${new Date(f.CloseDate).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})}</div></div>
+      </div>` : ''}
+      <div class="detail-info">
+        <div class="detail-title">${escHtml(f.GrantName||'')}</div>
+        <div style="font-size:14px;color:var(--muted);margin-bottom:10px">${escHtml(f.Funder||'')}</div>
+        <div class="detail-badges"><span class="badge badge-cat">${escHtml(f.Status||'Open')}</span>${f.Amount?`<span class="badge" style="background:#f0fdf4;color:var(--low);border-color:#bbf7d0">${escHtml(f.Amount)}</span>`:''}</div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-section-header"><span class="detail-section-title">Grant Details</span></div>
+        <div class="detail-grid">
+          <div class="detail-field"><div class="detail-field-label">Opens</div><div class="detail-text-block">${f.OpenDate?new Date(f.OpenDate).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'–'}</div></div>
+          <div class="detail-field"><div class="detail-field-label">Closes</div><div class="detail-text-block">${f.CloseDate?new Date(f.CloseDate).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'–'}</div></div>
+          <div class="detail-field" style="grid-column:1/-1"><div class="detail-field-label">Eligibility notes</div><div class="detail-text-block">${escHtml(f.EligibilityNotes||'–')}</div></div>
+          ${f.ApplicationURL?.Url?`<div class="detail-field" style="grid-column:1/-1"><div class="detail-field-label">Application URL</div><div class="detail-text-block"><a href="${escHtml(f.ApplicationURL.Url)}" target="_blank" style="color:var(--active)">${escHtml(f.ApplicationURL.Url)}</a></div></div>`:''}
+        </div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-section-header"><span class="detail-section-title">Notes &amp; Updates</span></div>
+        <div style="padding:0 14px 14px">
+          <div class="update-log-entries">${notes.length?notes.map(n=>`<div class="update-log-entry"><div class="update-log-meta">${n.fields.NoteDate?new Date(n.fields.NoteDate).toLocaleString('en-AU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):''} · ${escHtml(n.fields.Author0||'')}</div><div class="update-log-text">${escHtml(n.fields.NoteText||'')}</div></div>`).join(''):'<p style="font-size:13px;color:var(--muted);font-style:italic">No updates yet.</p>'}</div>
+          <textarea class="update-note-input" id="grant-note-input" placeholder="Add a note…"></textarea>
+          <button class="btn-add-note" onclick="addGrantNote('${id}')">Add Note</button>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    document.getElementById('grant-detail-body').innerHTML = `<p style="color:var(--high);padding:20px">Error: ${escHtml(e.message)}</p>`;
+  }
+}
+async function addGrantNote(grantId) {
+  const input = document.getElementById('grant-note-input');
+  const text = input.value.trim();
+  if (!text) return;
+  try {
+    await apiPost(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${notesListId}/items`, { fields: { Title:'Grant Note', ProjectId: `grant-${grantId}`, Author0: currentUser?.name||currentUser?.username||'User', NoteDate: new Date().toISOString(), NoteText: text } });
+    showToast('Note added', 'success');
+    await openGrant(grantId);
+  } catch (e) { showToast('Failed: '+e.message, 'error'); }
+}
+
+// ── ACTIVITY (computed from recent notes + recently modified items) ──
+async function renderActivity() {
+  const container = document.getElementById('activity-container');
+  container.innerHTML = '<div class="loading-spinner">Loading…</div>';
+  try {
+    const notesRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${notesListId}/items?expand=fields&$top=50&$orderby=fields/NoteDate desc`);
+    const notes = (notesRes.value||[]).slice(0,25);
+
+    const entries = notes.map(n => {
+      const isGrant = String(n.fields.ProjectId||'').startsWith('grant-');
+      const parentTitle = isGrant
+        ? (allGrants.find(g=>g.id===n.fields.ProjectId.replace('grant-',''))?.fields.GrantName || 'a grant')
+        : (allProjects.find(p=>p.id===n.fields.ProjectId)?.listItem?.fields?.Title || 'a project');
+      return {
+        date: n.fields.NoteDate || n.createdDateTime,
+        html: `<strong>${escHtml(n.fields.Author0||'Someone')}</strong> added a note to <strong>${escHtml(parentTitle)}</strong> <span class="activity-tag ${isGrant?'tag-grant':'tag-project'}">${isGrant?'Grant':'Project'}</span>`
+      };
+    });
+
+    const recentProjects = [...allProjects].sort((a,b)=>new Date(b.lastModifiedDateTime)-new Date(a.lastModifiedDateTime)).slice(0,10)
+      .map(p => ({ date: p.lastModifiedDateTime, html: `Project <strong>${escHtml(p.listItem?.fields?.Title||'Untitled')}</strong> was updated <span class="activity-tag tag-project">Project</span>` }));
+
+    const all = [...entries, ...recentProjects].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,30);
+
+    if (!all.length) { container.innerHTML = '<div class="empty-state"><h3>No activity yet</h3></div>'; return; }
+
+    let lastDay = '';
+    container.innerHTML = all.map(item => {
+      const day = new Date(item.date).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
+      const divider = day !== lastDay ? `<div class="activity-day-divider">${day}</div>` : '';
+      lastDay = day;
+      return `${divider}<div class="activity-entry"><div class="activity-avatar">•</div><div class="activity-card"><div class="activity-text">${item.html}</div><div class="activity-time">${timeAgo(item.date)}</div></div></div>`;
+    }).join('');
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state"><p style="color:var(--high)">Couldn't load activity: ${escHtml(e.message)}</p></div>`;
+  }
+}
+
+// ── UTILS ──
+function timeAgo(dateStr) {
+  const diff = (new Date() - new Date(dateStr)) / 1000;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff/60)+'m ago';
+  if (diff < 86400) return Math.floor(diff/3600)+'h ago';
+  if (diff < 604800) return Math.floor(diff/86400)+'d ago';
+  return new Date(dateStr).toLocaleDateString('en-AU',{day:'numeric',month:'short'});
+}
+function escHtml(str) {
+  if (str == null) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+let toastTimer;
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast'+(type?' '+type:'')+' show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 3000);
+}
+
+// ── BOOT ──
+(async () => {
+  try {
+    const result = await msalInstance.handleRedirectPromise();
+    let account = result?.account || msalInstance.getAllAccounts()[0];
+    if (!account) {
+      try { account = (await msalInstance.ssoSilent({ scopes })).account; }
+      catch (ssoError) { /* no active session */ }
+    }
+    if (account) {
+      currentUser = account;
+      msalInstance.setActiveAccount(account);
+      await onSignedIn();
+    } else {
+      showLoginButton();
+    }
+  } catch (e) {
+    console.error('Sign-in failed:', e);
+    showLoginButton();
+    const note = document.getElementById('login-note');
+    if (note) note.innerHTML = `<span style="color:#ffb4b4">Sign-in error: ${escHtml(e.errorMessage||e.message||String(e))}</span>`;
+  }
+})();
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.querySelector('.btn-login');
+  if (btn) btn.addEventListener('click', signIn);
+});
+</script>
+</body>
+</html>
