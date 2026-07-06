@@ -556,6 +556,20 @@ async function apiGet(url) {
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
+// Follows @odata.nextLink so lists and folders larger than one Graph page
+// load completely. Without this, older items silently vanish from the app.
+async function fetchAllPages(url, maxPages = 20) {
+  let results = [];
+  let next = url;
+  let pages = 0;
+  while (next && pages < maxPages) {
+    const res = await apiGet(next);
+    results = results.concat(res.value || []);
+    next = res['@odata.nextLink'] || null;
+    pages++;
+  }
+  return results;
+}
 async function apiPost(url, body) {
   const token = await getToken();
   const res = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -618,8 +632,8 @@ function switchMainTab(tab) {
 // ── LOAD PROJECTS ──
 async function loadProjects() {
   const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root/children?expand=listItem($expand=fields)&$top=999`;
-  const res = await apiGet(url);
-  allProjects = (res.value||[]).filter(item=>item.folder);
+  const items = await fetchAllPages(url);
+  allProjects = items.filter(item=>item.folder);
   renderLanes();
 }
 function getSubprojects(fields) {
@@ -719,8 +733,8 @@ async function renderProjectDetail(item, editing) {
   const filesRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${item.id}/children`);
   const files = (filesRes.value||[]).filter(x=>x.file);
 
-  const notesRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${notesListId}/items?expand=fields&$top=999`);
-  const notes = (notesRes.value||[]).filter(n=>n.fields.ProjectId===item.id).sort((a,b)=>new Date(b.fields.NoteDate||b.createdDateTime)-new Date(a.fields.NoteDate||a.createdDateTime));
+  const notesAll = await fetchAllPages(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${notesListId}/items?expand=fields&$top=999`);
+  const notes = notesAll.filter(n=>n.fields.ProjectId===item.id).sort((a,b)=>new Date(b.fields.NoteDate||b.createdDateTime)-new Date(a.fields.NoteDate||a.createdDateTime));
 
   document.getElementById('detail-body').innerHTML = `
     <div class="detail-info">
@@ -1108,8 +1122,7 @@ function resetProjectForm() {
 
 // ── GRANTS ──
 async function loadGrants() {
-  const res = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${grantsListId}/items?expand=fields&$top=999`);
-  allGrants = res.value||[];
+  allGrants = await fetchAllPages(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${grantsListId}/items?expand=fields&$top=999`);
   renderGrants();
 }
 function daysUntil(dateStr) {
@@ -1211,8 +1224,8 @@ async function openGrant(id) {
     const daysLeft = daysUntil(f.CloseDate);
     const isUrgent = daysLeft!==null && daysLeft<=14 && daysLeft>=0;
 
-    const notesRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${notesListId}/items?expand=fields&$top=999`);
-    const notes = (notesRes.value||[]).filter(n=>n.fields.ProjectId===`grant-${id}`).sort((a,b)=>new Date(b.fields.NoteDate||b.createdDateTime)-new Date(a.fields.NoteDate||a.createdDateTime));
+    const notesAll = await fetchAllPages(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${notesListId}/items?expand=fields&$top=999`);
+    const notes = notesAll.filter(n=>n.fields.ProjectId===`grant-${id}`).sort((a,b)=>new Date(b.fields.NoteDate||b.createdDateTime)-new Date(a.fields.NoteDate||a.createdDateTime));
 
     document.getElementById('grant-detail-body').innerHTML = `
       ${f.CloseDate ? `<div class="grant-deadline-banner ${!isUrgent?'safe':''}">
