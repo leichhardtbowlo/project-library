@@ -260,8 +260,40 @@ textarea.form-control{min-height:90px;resize:vertical;}
 .btn-submit-form:disabled{opacity:.45;cursor:not-allowed;}
 .form-progress{font-size:13px;color:var(--muted);text-align:center;margin-top:10px;min-height:18px;}
 
-.toast{position:fixed;bottom:82px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--navy);color:#fff;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:500;z-index:999;transition:transform .3s;white-space:nowrap;box-shadow:var(--shadow-lg);}
-.toast.show{transform:translateX(-50%) translateY(0);}
+.toast{position:fixed;bottom:82px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--navy);color:#fff;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:500;z-index:999;transition:transform .3s,opacity .3s;white-space:nowrap;box-shadow:var(--shadow-lg);opacity:0;visibility:hidden;pointer-events:none;}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;visibility:visible;}
+/* ── HEALTH TAB ── */
+.hl-summary{display:flex;gap:8px;background:var(--white);border-radius:10px;box-shadow:var(--shadow);padding:12px 14px;margin-bottom:10px;align-items:center;flex-wrap:wrap;}
+.hl-sum-item{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;}
+.hl-sum-item i{width:10px;height:10px;border-radius:3px;display:inline-block;}
+.hl-sum-good i{background:#16a34a;} .hl-sum-warn i{background:#d97706;} .hl-sum-bad i{background:#dc2626;}
+.hl-legend{font-size:10px;color:var(--muted);margin:0 2px 10px;}
+.hl-row{background:var(--white);border-radius:10px;box-shadow:var(--shadow);padding:13px 15px;margin-bottom:9px;border-left:5px solid var(--mid);cursor:pointer;}
+.hl-row:active{transform:scale(.995);}
+.hl-good{border-left-color:#16a34a;} .hl-warn{border-left-color:#d97706;} .hl-bad{border-left-color:#dc2626;}
+.hl-top{display:flex;align-items:baseline;gap:8px;margin-bottom:7px;flex-wrap:wrap;}
+.hl-title{font-weight:800;font-size:14px;color:var(--navy);}
+.hl-stage{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:9px;background:var(--offwhite,#f4f6f9);border:1px solid var(--mid);color:var(--muted);}
+.hl-status{margin-left:auto;font-size:10px;font-weight:800;padding:3px 9px;border-radius:11px;}
+.hl-status.hl-good{background:rgba(22,163,74,.12);color:#16a34a;border-left:none;}
+.hl-status.hl-warn{background:rgba(217,119,6,.12);color:#d97706;border-left:none;}
+.hl-status.hl-bad{background:rgba(220,38,38,.12);color:#dc2626;border-left:none;}
+.hl-bar{position:relative;height:20px;border-radius:11px;background:var(--offwhite,#f4f6f9);border:1px solid var(--mid);overflow:hidden;margin-bottom:7px;}
+.hl-bar i{display:block;height:100%;border-radius:11px;}
+.hl-good .hl-bar i{background:linear-gradient(90deg,#22c55e,#16a34a);}
+.hl-warn .hl-bar i{background:linear-gradient(90deg,#fbbf24,#d97706);}
+.hl-bad .hl-bar i{background:linear-gradient(90deg,#f87171,#dc2626);}
+.hl-bar-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:var(--navy);text-shadow:0 1px 0 rgba(255,255,255,.6);}
+.hl-dots{display:flex;gap:4px;margin-bottom:7px;flex-wrap:wrap;}
+.hl-dot{width:13px;height:13px;border-radius:4px;background:var(--offwhite,#f4f6f9);border:1px solid var(--mid);}
+.hl-dot.done{background:#16a34a;border-color:#16a34a;position:relative;}
+.hl-dot.done::after{content:'';position:absolute;left:4px;top:1px;width:4px;height:7px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg);}
+.hl-next{font-size:12px;color:var(--text);margin-bottom:6px;}
+.hl-next b{color:var(--navy);}
+.hl-foot{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--muted);align-items:center;}
+.hl-ago{margin-left:auto;font-weight:600;}
+.hl-bad .hl-ago{color:#dc2626;} .hl-warn .hl-ago{color:#d97706;}
+.hl-empty{font-size:13px;color:var(--muted);text-align:center;padding:24px 0;}
 .toast.success{background:var(--low);} .toast.error{background:var(--high);}
 .empty-state{text-align:center;padding:50px 20px;color:var(--muted);}
 .loading-spinner{text-align:center;padding:50px 20px;color:var(--muted);font-size:14px;}
@@ -315,6 +347,7 @@ textarea.form-control{min-height:90px;resize:vertical;}
     <div class="grants-body" id="grants-container"><div class="loading-spinner">Loading…</div></div>
   </div>
 
+  <div id="tab-health" style="display:none"></div>
   <div id="tab-activity" style="display:none">
     <div class="activity-body" id="activity-container"><div class="loading-spinner">Loading…</div></div>
   </div>
@@ -478,6 +511,10 @@ textarea.form-control{min-height:90px;resize:vertical;}
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
     Grants
   </button>
+  <button class="bottom-tab" id="btab-health" onclick="switchMainTab('health')">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+    Health
+  </button>
   <button class="bottom-tab" id="btab-activity" onclick="switchMainTab('activity')">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
     Activity
@@ -620,12 +657,13 @@ function showScreen(name) {
 }
 function backToHome(tab) { showScreen('home'); if (tab) switchMainTab(tab); }
 function switchMainTab(tab) {
-  ['projects','grants','activity'].forEach(t=>{
+  ['projects','grants','health','activity'].forEach(t=>{
     document.getElementById('tab-'+t).style.display = t===tab?'block':'none';
     document.getElementById('btab-'+t).classList.toggle('active', t===tab);
   });
   document.getElementById('fab').classList.toggle('visible', tab==='projects');
   if (tab==='activity') renderActivity();
+  if (tab==='health') renderHealth();
   window.scrollTo(0,0);
 }
 
@@ -1270,12 +1308,94 @@ async function addGrantNote(grantId) {
   } catch (e) { showToast('Failed: '+e.message, 'error'); }
 }
 
+// ── HEALTH (progress + momentum view over existing project data) ──
+// Momentum = days since the later of the project's last edit or its latest
+// update note. Progress = share of sub-projects marked done. The colour
+// tracks momentum (a fresh 20% project is healthier than an abandoned 80%
+// one); the bar length tracks completion.
+let healthNotesCache = null;
+async function renderHealth() {
+  const el = document.getElementById('tab-health');
+  el.innerHTML = '<div class="hl-empty">Checking project health…</div>';
+  try {
+    if (!allProjects || !allProjects.length) await loadProjects();
+    if (healthNotesCache === null) {
+      try {
+        healthNotesCache = await fetchAllPages(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${notesListId}/items?expand=fields&$top=999`);
+      } catch(e) { healthNotesCache = []; }
+    }
+    const latestNote = {};
+    healthNotesCache.forEach(n => {
+      const pid = n.fields.ProjectId;
+      const d = new Date(n.fields.NoteDate || n.createdDateTime).getTime() || 0;
+      if (pid && (!latestNote[pid] || d > latestNote[pid])) latestNote[pid] = d;
+    });
+
+    const now = Date.now();
+    const rows = allProjects
+      .filter(p => (p.listItem?.fields?.ProjectStage || 'Wishlist') !== 'Archived')
+      .map(p => {
+        const f = p.listItem?.fields || {};
+        const stage = f.ProjectStage || 'Wishlist';
+        const subs = getSubprojects(f);
+        const done = subs.filter(x => x.status === 'done').length;
+        const pct = subs.length ? Math.round(100 * done / subs.length) : 0;
+        const nextSub = subs.find(x => x.status !== 'done');
+        const lastEdit = new Date(p.lastModifiedDateTime).getTime() || 0;
+        const lastTouch = Math.max(lastEdit, latestNote[p.id] || 0);
+        const days = lastTouch ? Math.floor((now - lastTouch) / 86400000) : 999;
+        const finished = stage === 'Completed';
+        const health = finished ? 'good' : days >= 35 ? 'bad' : days >= 14 ? 'warn' : 'good';
+        return { p, f, stage, subs, done, pct, nextSub, days, health };
+      });
+
+    const counts = { good:0, warn:0, bad:0 };
+    rows.forEach(r => counts[r.health]++);
+    const rank = { bad:0, warn:1, good:2 };
+    rows.sort((a,b) => rank[a.health]-rank[b.health] || a.pct-b.pct);
+
+    const label = { good:'On track', warn:'Slowing', bad:'Stalled' };
+    const agoTxt = d => d >= 999 ? 'no activity yet' : d < 1 ? 'today' : d === 1 ? '1 day ago' : d < 14 ? d + ' days ago' : Math.round(d/7) + ' weeks ago';
+
+    el.innerHTML = `
+      <div class="hl-summary">
+        <span class="hl-sum-item hl-sum-bad"><i></i>${counts.bad} stalled</span>
+        <span class="hl-sum-item hl-sum-warn"><i></i>${counts.warn} slowing</span>
+        <span class="hl-sum-item hl-sum-good"><i></i>${counts.good} on track</span>
+      </div>
+      <div class="hl-legend">Colour tracks momentum (time since last edit or note) · bar tracks completed sub-projects · tap a project to open it</div>
+      ${rows.length ? rows.map(r => `
+        <div class="hl-row hl-${r.health}" onclick="openProject('${r.p.id}')">
+          <div class="hl-top">
+            <span class="hl-title">${escHtml(r.f.Title || 'Untitled')}</span>
+            <span class="hl-stage">${LANE_LABELS[r.stage] || escHtml(r.stage)}</span>
+            <span class="hl-status hl-${r.health}">${label[r.health]}</span>
+          </div>
+          <div class="hl-bar"><i style="width:${Math.max(r.pct,4)}%"></i><span class="hl-bar-label">${r.subs.length ? r.pct + '% · ' + r.done + ' of ' + r.subs.length + ' sub-projects' : 'No sub-projects yet'}</span></div>
+          ${r.subs.length ? `<div class="hl-dots">${r.subs.map(x=>`<span class="hl-dot${x.status==='done'?' done':''}" title="${escHtml(x.name||'')}"></span>`).join('')}</div>` : ''}
+          ${r.nextSub && r.stage !== 'Completed' ? `<div class="hl-next">Next: <b>${escHtml(r.nextSub.name || 'Unnamed sub-project')}</b></div>` : ''}
+          <div class="hl-foot">
+            ${r.f.ProjectCategory ? `<span class="badge badge-cat">${escHtml(r.f.ProjectCategory)}</span>` : ''}
+            <span class="hl-ago">Last activity ${agoTxt(r.days)}</span>
+          </div>
+        </div>`).join('') : '<div class="hl-empty">No projects yet. Add one from the Projects tab.</div>'}
+    `;
+  } catch (e) {
+    el.innerHTML = `<div class="hl-empty" style="color:#dc2626">Couldn't load project health: ${escHtml(e.message)}</div>`;
+  }
+}
+
 // ── ACTIVITY (computed from recent notes + recently modified items) ──
 async function renderActivity() {
   const container = document.getElementById('activity-container');
   container.innerHTML = '<div class="loading-spinner">Loading…</div>';
   try {
-    const notesRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${notesListId}/items?expand=fields&$top=50&$orderby=fields/NoteDate desc`);
+    // NoteDate isn't an indexed column, so SharePoint refuses server-side
+    // orderby on it. Fetch and sort client-side instead.
+    const notesAllPages = await fetchAllPages(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${notesListId}/items?expand=fields&$top=999`);
+    const notesRes = { value: notesAllPages
+      .sort((a,b)=>new Date(b.fields.NoteDate||b.createdDateTime)-new Date(a.fields.NoteDate||a.createdDateTime))
+      .slice(0, 50) };
     const notes = (notesRes.value||[]).slice(0,25);
 
     const entries = notes.map(n => {
