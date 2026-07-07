@@ -294,6 +294,8 @@ textarea.form-control{min-height:90px;resize:vertical;}
 .hl-ago{margin-left:auto;font-weight:600;}
 .hl-bad .hl-ago{color:#dc2626;} .hl-warn .hl-ago{color:#d97706;}
 .hl-empty{font-size:13px;color:var(--muted);text-align:center;padding:24px 0;}
+.sp-progress-bar{height:8px;border-radius:5px;background:var(--off);border:1px solid var(--mid);overflow:hidden;margin:0 14px 12px;}
+.sp-progress-bar i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,#22c55e,#16a34a);transition:width .3s ease;}
 .toast.success{background:var(--low);} .toast.error{background:var(--high);}
 .empty-state{text-align:center;padding:50px 20px;color:var(--muted);}
 .loading-spinner{text-align:center;padding:50px 20px;color:var(--muted);font-size:14px;}
@@ -334,7 +336,7 @@ textarea.form-control{min-height:90px;resize:vertical;}
     <div class="toolbar">
       <div class="search-wrap">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input class="search-input" id="project-search" type="text" placeholder="Search projects…" oninput="renderLanes()">
+        <input class="search-input" id="project-search" type="text" placeholder="Search projects…" oninput="renderProjectsHome()">
       </div>
     </div>
     <div id="lanes-container"><div class="loading-spinner">Loading…</div></div>
@@ -347,7 +349,6 @@ textarea.form-control{min-height:90px;resize:vertical;}
     <div class="grants-body" id="grants-container"><div class="loading-spinner">Loading…</div></div>
   </div>
 
-  <div id="tab-health" style="display:none"></div>
   <div id="tab-activity" style="display:none">
     <div class="activity-body" id="activity-container"><div class="loading-spinner">Loading…</div></div>
   </div>
@@ -511,10 +512,6 @@ textarea.form-control{min-height:90px;resize:vertical;}
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
     Grants
   </button>
-  <button class="bottom-tab" id="btab-health" onclick="switchMainTab('health')">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-    Health
-  </button>
   <button class="bottom-tab" id="btab-activity" onclick="switchMainTab('activity')">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
     Activity
@@ -657,13 +654,12 @@ function showScreen(name) {
 }
 function backToHome(tab) { showScreen('home'); if (tab) switchMainTab(tab); }
 function switchMainTab(tab) {
-  ['projects','grants','health','activity'].forEach(t=>{
+  ['projects','grants','activity'].forEach(t=>{
     document.getElementById('tab-'+t).style.display = t===tab?'block':'none';
     document.getElementById('btab-'+t).classList.toggle('active', t===tab);
   });
   document.getElementById('fab').classList.toggle('visible', tab==='projects');
   if (tab==='activity') renderActivity();
-  if (tab==='health') renderHealth();
   window.scrollTo(0,0);
 }
 
@@ -672,7 +668,7 @@ async function loadProjects() {
   const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root/children?expand=listItem($expand=fields)&$top=999`;
   const items = await fetchAllPages(url);
   allProjects = items.filter(item=>item.folder);
-  renderLanes();
+  await renderProjectsHome();
 }
 function getSubprojects(fields) {
   try { return JSON.parse(fields.SubprojectsJSON || '[]'); } catch(e) { return []; }
@@ -876,6 +872,7 @@ function renderSubprojectsSection(subs) {
   return `
     <div class="subprojects-section">
       <div class="subprojects-header"><span class="subprojects-title">Sub-projects</span><span class="subprojects-summary">${doneCnt} of ${subs.length} complete</span></div>
+      ${subs.length ? `<div class="sp-progress-bar"><i style="width:${Math.max(Math.round(100*doneCnt/subs.length),subs.length?4:0)}%"></i></div>` : ''}
       <div class="subproject-accordion">${items}</div>
       <div class="add-subproject-bar">${suggestions}<div class="add-sp-pill" onclick="addCustomSpToProject()">+ Custom…</div></div>
     </div>`;
@@ -1308,17 +1305,19 @@ async function addGrantNote(grantId) {
   } catch (e) { showToast('Failed: '+e.message, 'error'); }
 }
 
-// ── HEALTH (progress + momentum view over existing project data) ──
+// ── PROJECTS HOME (health / momentum view — the Projects tab landing screen) ──
 // Momentum = days since the later of the project's last edit or its latest
 // update note. Progress = share of sub-projects marked done. The colour
 // tracks momentum (a fresh 20% project is healthier than an abandoned 80%
-// one); the bar length tracks completion.
+// one); the bar length tracks completion. Archived projects are excluded
+// since finished/shelved work can't stall. Tapping a row opens the normal
+// project detail screen via the existing openProject().
 let healthNotesCache = null;
-async function renderHealth() {
-  const el = document.getElementById('tab-health');
-  el.innerHTML = '<div class="hl-empty">Checking project health…</div>';
+async function renderProjectsHome() {
+  const el = document.getElementById('lanes-container');
+  const search = (document.getElementById('project-search').value || '').toLowerCase();
+  el.innerHTML = '<div class="loading-spinner">Checking project health…</div>';
   try {
-    if (!allProjects || !allProjects.length) await loadProjects();
     if (healthNotesCache === null) {
       try {
         healthNotesCache = await fetchAllPages(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${notesListId}/items?expand=fields&$top=999`);
@@ -1334,6 +1333,7 @@ async function renderHealth() {
     const now = Date.now();
     const rows = allProjects
       .filter(p => (p.listItem?.fields?.ProjectStage || 'Wishlist') !== 'Archived')
+      .filter(p => !search || (p.listItem?.fields?.Title||'').toLowerCase().includes(search))
       .map(p => {
         const f = p.listItem?.fields || {};
         const stage = f.ProjectStage || 'Wishlist';
@@ -1378,7 +1378,7 @@ async function renderHealth() {
             ${r.f.ProjectCategory ? `<span class="badge badge-cat">${escHtml(r.f.ProjectCategory)}</span>` : ''}
             <span class="hl-ago">Last activity ${agoTxt(r.days)}</span>
           </div>
-        </div>`).join('') : '<div class="hl-empty">No projects yet. Add one from the Projects tab.</div>'}
+        </div>`).join('') : `<div class="hl-empty">${search ? 'No projects match your search.' : 'No projects yet. Tap + to add one.'}</div>`}
     `;
   } catch (e) {
     el.innerHTML = `<div class="hl-empty" style="color:#dc2626">Couldn't load project health: ${escHtml(e.message)}</div>`;
