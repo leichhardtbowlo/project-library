@@ -961,6 +961,7 @@ async function addProjectNote() {
   if (!text) return;
   try {
     await apiPost(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${notesListId}/items`, { fields: { Title:'Note', ProjectId: currentProjectId, Author0: currentUser?.name||currentUser?.username||'User', NoteDate: new Date().toISOString(), NoteText: text } });
+    healthNotesCache = null;
     showToast('Note added', 'success');
     await renderProjectDetail(currentProjectData, editMode);
   } catch (e) { showToast('Failed: '+e.message, 'error'); }
@@ -1439,7 +1440,7 @@ function timeAgo(dateStr) {
 }
 function escHtml(str) {
   if (str == null) return '';
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 let toastTimer;
 function showToast(msg, type) {
